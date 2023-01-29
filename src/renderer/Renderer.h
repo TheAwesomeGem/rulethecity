@@ -11,22 +11,36 @@
 #include "Texture.h"
 
 
-static constexpr const size_t MAX_QUADS = 1000;
-static constexpr const size_t QUAD_VERTICES = 4;
-static constexpr const size_t QUAD_INDICES = 6;
-static constexpr const size_t MAX_VERTICES = MAX_QUADS * QUAD_VERTICES;
-static constexpr const size_t MAX_INDICES = MAX_QUADS * QUAD_INDICES;
+static constexpr const size_t MAX_VERTICES = 4000;
+static constexpr const size_t MAX_INDICES = 6000;
 static constexpr const size_t MAX_TEXTURES = 8;
 
-struct DrawableQuad {
+struct Shape {
+    std::vector<glm::vec3> vertices;
+    std::vector<int> indices;
+    std::vector<glm::vec2> uvs;
+};
+
+struct Transformation {
     glm::vec2 position;
-    glm::vec2 size;
-    glm::vec4 color;
-    size_t texture_index = 999999;
+    float rotation;
+    glm::vec2 scale;
 };
 
 class Renderer {
 private:
+    struct Drawable {
+        Drawable(const Shape* shape_, Transformation transformation_)
+                : shape{shape_}, transformation{transformation_}, texture_index{-1} {
+
+        }
+
+        const Shape* shape;
+        Transformation transformation;
+        glm::vec4 tint_color;
+        int texture_index;
+    };
+
     struct Gpu {
         GLuint vao_id;
         GLuint vertex_buffer_id;
@@ -34,6 +48,11 @@ private:
     };
 
     struct Vertex {
+        Vertex(glm::vec3 point_, glm::vec4 color_, glm::vec2 uv_, float texture_index_)
+                : point{point_}, color{color_}, uv{uv_}, texture_index{texture_index_} {
+
+        }
+
         glm::vec3 point;
         glm::vec4 color;
         glm::vec2 uv;
@@ -41,24 +60,19 @@ private:
     };
 
     struct CpuBuffer {
-        std::vector<DrawableQuad> drawables;
+        std::vector<Drawable> drawables;
         std::vector<GLuint> textures;
+        size_t vertices_count;
+        size_t indices_count;
 
         [[nodiscard]] size_t bytes_used() const {
-            return quad_bytes(drawables.size());
+            return sizeof(Vertex) * vertices_count;
         }
+    };
 
-        [[nodiscard]] size_t vertices_count() const {
-            return drawables.size() * QUAD_VERTICES;
-        }
-
-        [[nodiscard]] size_t indices_count() const {
-            return drawables.size() * QUAD_INDICES;
-        }
-
-        [[nodiscard]] size_t texture_count() const {
-            return textures.size();
-        }
+    struct BatchedBuffer {
+        std::vector<Vertex> vertices;
+        std::vector<int> indices;
     };
 
 public:
@@ -66,7 +80,12 @@ public:
 
     void batch_begin(); // Initializes the batching
 
-    void draw(DrawableQuad drawable, std::optional<Texture> texture_opt = std::nullopt); // Adds the drawable for rendering
+    void draw(const Shape& shape,
+              glm::vec2 position,
+              float rotation,
+              glm::vec2 scale,
+              glm::vec4 tint_color = {1.0F, 1.0F, 1.0F, 1.0F},
+              std::optional<Texture> texture = std::nullopt); // Adds the shape for rendering
 
     void batch_end(); // Executes the actual draw command
 
@@ -79,42 +98,22 @@ private:
 
     void init_batch_ibo();
 
-    [[nodiscard]] std::vector<Vertex> generate_batched_buffer(const CpuBuffer& cpu_buffer, const std::array<glm::vec3, 4>& vertices, const std::array<glm::vec2, 4>& uvs) const;
+    void init_shader();
+
+    [[nodiscard]] BatchedBuffer generate_batched_buffer(const CpuBuffer& cpu_buffer) const;
 
     void set_shader_projection();
 
     void set_shader_textures(const CpuBuffer& cpu_buffer);
 
-    static void add_texture_to_batch(Renderer::CpuBuffer& cpu_buffer, DrawableQuad& drawable, const Texture& texture);
+    static void add_to_cpu_buffer(const Shape& shape, Transformation transformation, glm::vec4 tint_color, std::optional<Texture> texture, CpuBuffer& cpu_buffer);
 
-    [[nodiscard]] static constexpr size_t quad_bytes(size_t quads) {
-        return (sizeof(Vertex) * QUAD_VERTICES) * quads;
-    }
-
-    [[nodiscard]] static constexpr std::array<glm::vec3, 4> quad_vertex() {
-        return std::array<glm::vec3, 4>{
-                glm::vec3{-1.0F, 1.0F, 0.0F},       // BOTTOM LEFT
-                glm::vec3{1.0F, 1.0F, 0.0F},        // BOTTOM RIGHT
-                glm::vec3{-1.0F, -1.0F, 0.0F},      // TOP LEFT
-                glm::vec3{1.0, -1.0F, 0.0F}         // TOP RIGHT
-        };
-    }
-
-    [[nodiscard]] static constexpr std::array<glm::vec2, 4> quad_uv() {
-        return std::array<glm::vec2, 4>{
-                glm::vec2{0.0F, 0.0F},                  // BOTTOM LEFT
-                glm::vec2{1.0F, 0.0F},                  // BOTTOM RIGHT
-                glm::vec2{0.0F, 1.0F},                  // TOP LEFT
-                glm::vec2{1.0, 1.0F}                    // TOP RIGHT
-        };
-    }
+    [[nodiscard]] std::vector<Vertex> generate_vertex_buffer(const Drawable& drawable) const;
 
 private:
     Shader shader;
     Gpu gpu;
     std::vector<CpuBuffer> cpu_buffers;
     bool is_batch_rendering = false;
-    Texture no_texture;
-public:
-    Texture round_texture;
+    Texture empty_texture;
 };

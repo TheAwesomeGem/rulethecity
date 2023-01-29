@@ -15,7 +15,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 # =========
 
-add_executable(rulethecity src/main.cpp src/renderer/Shader.cpp src/renderer/Shader.h src/renderer/Renderer.cpp src/renderer/Renderer.h src/renderer/stb_image.cpp src/renderer/Texture.cpp src/renderer/Texture.h src/renderer/Screen.h src/renderer/RenderUtil.h)
+add_executable(rulethecity src/main.cpp src/renderer/Shader.cpp src/renderer/Shader.h src/renderer/stb_image.cpp src/renderer/Texture.cpp src/renderer/Texture.h src/renderer/Screen.h src/renderer/Renderer.cpp src/renderer/Renderer.h src/renderer/ShapeGenerator.h)
 target_link_libraries(rulethecity
         PRIVATE
         $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>

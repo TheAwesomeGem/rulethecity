@@ -21,3 +21,17 @@ Texture Texture::load(const char* file_name) {
             texture_id
     };
 }
+
+Texture Texture::create_empty() {
+    unsigned char data[] = {255, 255, 255};
+
+    GLuint texture_id;
+    glGenTextures(1, &texture_id);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    return Texture{
+            texture_id
+    };
+}

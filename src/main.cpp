@@ -4,9 +4,9 @@
 #include <cstdio>
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
-#include "renderer/Renderer.h"
 #include "renderer/Screen.h"
-#include "renderer/RenderUtil.h"
+#include "renderer/Renderer.h"
+#include "renderer/ShapeGenerator.h"
 
 
 // Globals
@@ -15,7 +15,8 @@ static SDL_GLContext main_context;
 // =======
 
 // TODO:
-// TODO: Add bordered circle to the renderer
+// ============
+// TODO: Figure out how to do performant circle drawing with triangles and without fragment shader
 // TODO: Port the stage area from the other project to this game.
 // TODO: Add text rendering.
 // TODO: Create a simple UI for the terminal.
@@ -101,6 +102,17 @@ int main(int argc, char* args[]) {
     SDL_Event event;
     bool quit = false;
 
+    /**
+                glm::vec3{-1.0F, 1.0F, 0.0F},       // BOTTOM LEFT
+                glm::vec3{1.0F, 1.0F, 0.0F},        // BOTTOM RIGHT
+                glm::vec3{-1.0F, -1.0F, 0.0F},      // TOP LEFT
+                glm::vec3{1.0, -1.0F, 0.0F}         // TOP RIGHT
+
+     */
+
+    Shape quad = ShapeGenerator::generate_quad();
+    Shape triangle = ShapeGenerator::generate_triangle();
+
     while (!quit) {
         // Event
         while (SDL_PollEvent(&event)) {
@@ -125,17 +137,9 @@ int main(int argc, char* args[]) {
 
         // Draw
         renderer.batch_begin();
-        //        renderer.draw(DrawableQuad{glm::vec2{200.0F, 200.0F}, glm::vec2{100.0F, 100.0F}, glm::vec4{1.0, 1.0, 1.0, 1.0}}, wall);
-        //        renderer.draw(DrawableQuad{glm::vec2{400.0F, 400.0F}, glm::vec2{100.0F, 100.0F}, glm::vec4{1.0, 0.0, 0.0, 1.0}});
-        //        renderer.draw(DrawableQuad{glm::vec2{600.0F, 600.0F}, glm::vec2{100.0F, 100.0F}, glm::vec4{0.0, 0.0, 1.0, 1.0}});
-        draw_border_rect_color(
-                renderer,
-                glm::vec2{200.0F, 200.0F},
-                glm::vec2{300.0F, 300.0F},
-                1.0F,
-                glm::vec4{1.0F, 0.0F, 0.0F, 1.0F}
-        );
-        draw_solid_circle_color(renderer, glm::vec2{0.0F, 0.0F}, 20.0F, glm::vec4{0.0F, 1.0F, 0.0F, 1.0F});
+        renderer.draw(quad, glm::vec2{0.0F, 0.0F}, 0.0F, glm::vec2{100.0F, 100.0F}, {1.0F, 0.0F, 0.0F, 1.0F});
+        renderer.draw(quad, glm::vec2{200.0F, 200.0F}, 0.0F, glm::vec2{200.0F, 200.0F}, {0.0F, 0.0F, 1.0F, 0.1F});
+        renderer.draw(triangle, glm::vec2{400.0F, 400.0F}, 0.0F, glm::vec2{300.0F, 300.0F}, {1.0F, 1.0F, 1.0F, 1.0F}, container);
         renderer.batch_end();
 
         SDL_GL_SwapWindow(window);

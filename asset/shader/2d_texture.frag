@@ -6,7 +6,7 @@ in float frag_texture_index;
 
 out vec4 pixel_color;
 
-uniform sampler2D u_textures[8];
+uniform sampler2D u_textures[9];
 
 void main()
 {
