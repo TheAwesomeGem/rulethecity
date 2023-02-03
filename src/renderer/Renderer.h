@@ -3,10 +3,12 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <utility>
 #include <vector>
 #include <array>
 #include <unordered_set>
 #include <optional>
+#include <unordered_map>
 #include "Shader.h"
 #include "Texture.h"
 
@@ -47,6 +49,7 @@ private:
         GLuint index_buffer_id;
     };
 
+    // TODO: This needs to change to have support different shaders
     struct Vertex {
         Vertex(glm::vec3 point_, glm::vec4 color_, glm::vec2 uv_, float texture_index_)
                 : point{point_}, color{color_}, uv{uv_}, texture_index{texture_index_} {
@@ -70,6 +73,15 @@ private:
         }
     };
 
+    struct DrawBuffer {
+        DrawBuffer(ShaderInfo shader_info_) : shader_info{std::move(shader_info_)}, cpu_buffers{} {
+
+        }
+
+        ShaderInfo shader_info;
+        std::vector<CpuBuffer> cpu_buffers;
+    };
+
     struct BatchedBuffer {
         std::vector<Vertex> vertices;
         std::vector<int> indices;
@@ -81,6 +93,7 @@ public:
     void batch_begin(); // Initializes the batching
 
     void draw(const Shape& shape,
+              const ShaderInfo& shader_info,
               glm::vec2 position,
               float rotation,
               glm::vec2 scale,
@@ -98,11 +111,11 @@ private:
 
     void init_batch_ibo();
 
-    void init_shader();
+    void init_shaders();
 
     [[nodiscard]] BatchedBuffer generate_batched_buffer(const CpuBuffer& cpu_buffer) const;
 
-    void set_shader_projection();
+    void set_shader_projection(const Shader& shader);
 
     void set_shader_textures(const CpuBuffer& cpu_buffer);
 
@@ -111,9 +124,8 @@ private:
     [[nodiscard]] std::vector<Vertex> generate_vertex_buffer(const Drawable& drawable) const;
 
 private:
-    Shader shader;
+    std::unordered_map<ShaderType, Shader> shaders;
     Gpu gpu;
-    std::vector<CpuBuffer> cpu_buffers;
+    std::unordered_map<ShaderType, DrawBuffer> draw_buffers;
     bool is_batch_rendering = false;
-    Texture empty_texture;
 };

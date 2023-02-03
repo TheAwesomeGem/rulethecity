@@ -2,6 +2,17 @@
 #include "Texture.h"
 
 
+Texture Texture::empty_texture{};
+
+void Texture::init() {
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    empty_texture = Texture::create_empty();
+}
+
 Texture Texture::load(const char* file_name) {
     int width, height, channels;
     unsigned char* data = stbi_load(file_name, &width, &height, &channels, 0);

@@ -96,8 +96,9 @@ int main(int argc, char* args[]) {
 
     postinit_screen();
 
-    Texture wall = Texture::load("texture/wall.jpg");
-    Texture container = Texture::load("texture/container.jpg");
+    Texture fill_cell = Texture::load("texture/fill_cell.png");
+    Texture empty_cell = Texture::load("texture/empty_cell.png");
+    Texture stage_border = Texture::load("texture/stage_border.png");
 
     SDL_Event event;
     bool quit = false;
@@ -112,6 +113,11 @@ int main(int argc, char* args[]) {
 
     Shape quad = ShapeGenerator::generate_quad();
     Shape triangle = ShapeGenerator::generate_triangle();
+
+    ShaderInfo basic_shader{
+            ShaderType::FILLED_QUAD,
+            {}
+    };
 
     while (!quit) {
         // Event
@@ -137,9 +143,9 @@ int main(int argc, char* args[]) {
 
         // Draw
         renderer.batch_begin();
-        renderer.draw(quad, glm::vec2{0.0F, 0.0F}, 0.0F, glm::vec2{100.0F, 100.0F}, {1.0F, 0.0F, 0.0F, 1.0F});
-        renderer.draw(quad, glm::vec2{200.0F, 200.0F}, 0.0F, glm::vec2{200.0F, 200.0F}, {0.0F, 0.0F, 1.0F, 0.1F});
-        renderer.draw(triangle, glm::vec2{400.0F, 400.0F}, 0.0F, glm::vec2{300.0F, 300.0F}, {1.0F, 1.0F, 1.0F, 1.0F}, container);
+        renderer.draw(quad, basic_shader, glm::vec2{0.0F, 0.0F}, 0.0F, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, empty_cell);
+        renderer.draw(quad, basic_shader, glm::vec2{65.0F, 65.0F}, 0.0F, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, fill_cell);
+        renderer.draw(quad, basic_shader, glm::vec2{130.0F, 130.0F}, 0.0F, glm::vec2{400.0F, 100.0F}, {1.0F, 1.0F, 1.0F, 1.0F}, stage_border);
         renderer.batch_end();
 
         SDL_GL_SwapWindow(window);

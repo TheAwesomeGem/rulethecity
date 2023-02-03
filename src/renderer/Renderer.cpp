@@ -9,35 +9,39 @@
 
 void Renderer::init(void* (* proc)(const char*)) {
     init_gl(proc);
-    shader.init();
+    init_shaders();
     init_gpu_buffer();
-    init_shader();
 }
 
 void Renderer::batch_begin() {
     this->is_batch_rendering = true;
 }
 
-void Renderer::draw(const Shape& shape, glm::vec2 position, float rotation, glm::vec2 scale, glm::vec4 tint_color, std::optional<Texture> texture) {
+void Renderer::draw(const Shape& shape, const ShaderInfo& shader_info, glm::vec2 position, float rotation, glm::vec2 scale, glm::vec4 tint_color, std::optional<Texture> texture) {
     if (!this->is_batch_rendering) {
         printf("Only batch rendering is supported atm.");
 
         return;
     }
 
+    if (draw_buffers.find(shader_info.type) == draw_buffers.end()) {
+        draw_buffers.emplace(shader_info.type, shader_info);
+    }
+
+    DrawBuffer& draw_buffer = draw_buffers.at(shader_info.type);
     Transformation transformation{position, rotation, scale};
 
     // No cpu buffer exist, create a new cpu buffer and push the drawable
-    if (this->cpu_buffers.empty()) {
+    if (draw_buffer.cpu_buffers.empty()) {
         // FUTURE TODO: Optimize these buffers with pre-allocation
-        CpuBuffer& cpu_buffer = this->cpu_buffers.emplace_back();
+        CpuBuffer& cpu_buffer = draw_buffer.cpu_buffers.emplace_back();
         add_to_cpu_buffer(shape, transformation, tint_color, texture, cpu_buffer);
 
         return;
     }
 
     // Cpu buffers is not empty, then get the last cpu buffer
-    CpuBuffer& last_cpu_buffer = this->cpu_buffers.back();
+    CpuBuffer& last_cpu_buffer = draw_buffer.cpu_buffers.back();
     size_t new_vertices_count = last_cpu_buffer.vertices_count + shape.vertices.size();
     size_t new_indices_count = last_cpu_buffer.indices_count + shape.indices.size();
 
@@ -45,7 +49,7 @@ void Renderer::draw(const Shape& shape, glm::vec2 position, float rotation, glm:
     if (new_vertices_count >= MAX_VERTICES ||
         new_indices_count >= MAX_INDICES ||
         last_cpu_buffer.textures.size() >= MAX_TEXTURES) {
-        CpuBuffer& new_cpu_buffer = this->cpu_buffers.emplace_back();
+        CpuBuffer& new_cpu_buffer = draw_buffer.cpu_buffers.emplace_back();
         add_to_cpu_buffer(shape, transformation, tint_color, texture, new_cpu_buffer);
     } else {
         add_to_cpu_buffer(shape, transformation, tint_color, texture, last_cpu_buffer);
@@ -59,30 +63,33 @@ void Renderer::batch_end() {
     glBindBuffer(GL_ARRAY_BUFFER, gpu.vertex_buffer_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpu.index_buffer_id);
 
-    // Each cpu buffer is subject to a draw call
-    for (const CpuBuffer& cpu_buffer: cpu_buffers) {
-        // Draw call
-        BatchedBuffer batched_buffer = generate_batched_buffer(cpu_buffer);
-
-        const std::vector<Vertex>& gpu_vertex_buffer = batched_buffer.vertices;
-        glBufferSubData(GL_ARRAY_BUFFER, 0, gpu_vertex_buffer.size() * sizeof(Vertex), gpu_vertex_buffer.data());
-
-        const std::vector<int>& gpu_index_buffer = batched_buffer.indices;
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, gpu_index_buffer.size() * sizeof(int), gpu_index_buffer.data());
-
+    for (const auto& [shader_type, draw_buffer]: draw_buffers) {
+        const Shader& shader = shaders.at(shader_type);
         shader.bind();
 
-        set_shader_projection();
-        set_shader_textures(cpu_buffer);
+        // Each cpu buffer is subject to a draw call
+        for (const CpuBuffer& cpu_buffer: draw_buffer.cpu_buffers) {
+            // Draw call
+            BatchedBuffer batched_buffer = generate_batched_buffer(cpu_buffer);
 
-        glDrawElements(GL_TRIANGLES, cpu_buffer.indices_count, GL_UNSIGNED_INT, 0);
+            const std::vector<Vertex>& gpu_vertex_buffer = batched_buffer.vertices;
+            glBufferSubData(GL_ARRAY_BUFFER, 0, gpu_vertex_buffer.size() * sizeof(Vertex), gpu_vertex_buffer.data());
 
-        ++draw_calls;
-        // ---
+            const std::vector<int>& gpu_index_buffer = batched_buffer.indices;
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, gpu_index_buffer.size() * sizeof(int), gpu_index_buffer.data());
+
+            set_shader_projection(shader);
+            set_shader_textures(cpu_buffer);
+
+            glDrawElements(GL_TRIANGLES, cpu_buffer.indices_count, GL_UNSIGNED_INT, 0);
+
+            ++draw_calls;
+            // ---
+        }
     }
 
-    // Clear the cpu buffer after drawing is done
-    cpu_buffers.clear();
+    // Clear the draw buffers after drawing is done
+    draw_buffers.clear();
 
     this->is_batch_rendering = false;
 
@@ -114,13 +121,13 @@ Renderer::BatchedBuffer Renderer::generate_batched_buffer(const CpuBuffer& cpu_b
     return BatchedBuffer{gpu_vertex_buffer, gpu_index_buffer};
 }
 
-void Renderer::set_shader_projection() {
+void Renderer::set_shader_projection(const Shader& shader) {
     glm::mat4 projection = glm::ortho(0.0F, (float) Screen::WIDTH, 0.0F, (float) Screen::HEIGHT);
     shader.setMatrix("u_projection", projection);
 }
 
 void Renderer::set_shader_textures(const CpuBuffer& cpu_buffer) {
-    glBindTextureUnit(0, empty_texture.id);
+    glBindTextureUnit(0, Texture::empty_texture.id);
 
     size_t tex_index = 1;
     for (GLuint texture_id: cpu_buffer.textures) {
@@ -231,6 +238,8 @@ void Renderer::init_gpu_buffer() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+// TODO: This needs to change to have support different shaders
+// TODO: We need to generate a different vbo and vao for different shaders
 void Renderer::init_batch_vbo() {
     glGenBuffers(1, &gpu.vertex_buffer_id);
 
@@ -261,22 +270,26 @@ void Renderer::init_batch_ibo() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * MAX_INDICES, nullptr, GL_DYNAMIC_DRAW);
 }
 
-void Renderer::init_shader() {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+void Renderer::init_shaders() {
+    Texture::init();
 
-    empty_texture = Texture::create_empty();
+    std::array<ShaderType, 1> shader_types{ShaderType::FILLED_QUAD};
 
-    shader.bind();
-    std::vector<int> textures{};
-    textures.reserve(MAX_TEXTURES);
+    for (ShaderType shader_type: shader_types) {
+        Shader shader{};
+        shader.init();
 
-    for (int i = 0; i < MAX_TEXTURES + 1; ++i) {
-        textures.push_back(i);
+        shader.bind();
+        std::vector<int> textures{};
+        textures.reserve(MAX_TEXTURES);
+
+        for (int i = 0; i < MAX_TEXTURES + 1; ++i) {
+            textures.push_back(i);
+        }
+
+        shader.setIntArray("u_textures", textures);
+        shader.unbind();
+
+        shaders.emplace(shader_type, shader);
     }
-
-    shader.setIntArray("u_textures", textures);
-    shader.unbind();
 }
