@@ -6,22 +6,15 @@
 #include <unordered_map>
 
 
-enum class ShaderType {
-    FILLED_QUAD
-};
+static constexpr const size_t MAX_TEXTURES = 8;
 
-struct ShaderInfo {
-    ShaderType type;
-    std::unordered_map<const char*, float> floats_params;
-};
-
-class Shader {
+class ShaderProgram {
 public:
-    Shader() : program_id { 0 } {
+    ShaderProgram() : program_id { 0 } {
 
     }
 
-    void init();
+    void init(const char* vertex_shader_file, const char* fragment_shader_file);
 
     void bind() const;
 
@@ -33,6 +26,8 @@ public:
 
 private:
     static GLuint load_shader(const char* file_name, GLenum gl_shader_type);
+
+    void init_texture_slots() const;
 
 private:
     GLuint program_id;

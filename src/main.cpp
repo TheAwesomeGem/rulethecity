@@ -111,13 +111,14 @@ int main(int argc, char* args[]) {
 
      */
 
-    Shape quad = ShapeGenerator::generate_quad();
-    Shape triangle = ShapeGenerator::generate_triangle();
+    ShaderProgram simple_shader;
+    simple_shader.init("shader/filled_quad.vert", "shader/filled_quad.frag");
 
-    ShaderInfo basic_shader{
-            ShaderType::FILLED_QUAD,
-            {}
-    };
+    Shape quad = ShapeGenerator::generate_quad(0, simple_shader);
+    Shape triangle = ShapeGenerator::generate_triangle(1, simple_shader);
+
+    quad.init();
+    triangle.init();
 
     while (!quit) {
         // Event
@@ -142,11 +143,10 @@ int main(int argc, char* args[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Draw
-        renderer.batch_begin();
-        renderer.draw(quad, basic_shader, glm::vec2{0.0F, 0.0F}, 0.0F, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, empty_cell);
-        renderer.draw(quad, basic_shader, glm::vec2{65.0F, 65.0F}, 0.0F, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, fill_cell);
-        renderer.draw(quad, basic_shader, glm::vec2{130.0F, 130.0F}, 0.0F, glm::vec2{400.0F, 100.0F}, {1.0F, 1.0F, 1.0F, 1.0F}, stage_border);
-        renderer.batch_end();
+        renderer.draw(&quad, glm::vec2{0.0F, 0.0F}, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, empty_cell);
+        renderer.draw(&quad, glm::vec2{65.0F, 65.0F}, glm::vec2{64.0F, 64.0F}, {1.0F, 0.0F, 0.0F, 1.0F}, fill_cell);
+        renderer.draw(&quad, glm::vec2{130.0F, 130.0F}, glm::vec2{400.0F, 100.0F}, {1.0F, 1.0F, 1.0F, 1.0F}, stage_border);
+        renderer.flush();
 
         SDL_GL_SwapWindow(window);
     }

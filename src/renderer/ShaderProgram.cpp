@@ -3,17 +3,17 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <fstream>
 #include <sstream>
-#include "Shader.h"
+#include "ShaderProgram.h"
 
 
-void Shader::init() {
-    GLuint vertex_shader = load_shader("shader/filled_quad.vert", GL_VERTEX_SHADER);
+void ShaderProgram::init(const char* vertex_shader_file, const char* fragment_shader_file) {
+    GLuint vertex_shader = load_shader(vertex_shader_file, GL_VERTEX_SHADER);
 
     if (vertex_shader == 0) {
         return;
     }
 
-    GLuint fragment_shader = load_shader("shader/filled_quad.frag", GL_FRAGMENT_SHADER);
+    GLuint fragment_shader = load_shader(fragment_shader_file, GL_FRAGMENT_SHADER);
 
     if (fragment_shader == 0) {
         return;
@@ -58,25 +58,28 @@ void Shader::init() {
     printf("Loaded Main Program.\n");
 
     this->program_id = program;
+
+    // FUTURE TODO: Maybe only certain shader needs this? Should we move this outside of here?
+    init_texture_slots();
 }
 
-void Shader::bind() const {
+void ShaderProgram::bind() const {
     glUseProgram(program_id);
 }
 
-void Shader::unbind() const {
+void ShaderProgram::unbind() const {
     glUseProgram(0);
 }
 
-void Shader::setMatrix(const char* uniform_name, glm::mat<4, 4, float> matrix) const {
+void ShaderProgram::setMatrix(const char* uniform_name, glm::mat<4, 4, float> matrix) const {
     glUniformMatrix4fv(glGetUniformLocation(this->program_id, uniform_name), 1, GL_FALSE, glm::value_ptr(matrix));
 }
 
-void Shader::setIntArray(const char* uniform_name, const std::vector<int>& array) const {
+void ShaderProgram::setIntArray(const char* uniform_name, const std::vector<int>& array) const {
     glUniform1iv(glGetUniformLocation(this->program_id, uniform_name), array.size(), array.data());
 }
 
-GLuint Shader::load_shader(const char* file_name, GLenum gl_shader_type) {
+GLuint ShaderProgram::load_shader(const char* file_name, GLenum gl_shader_type) {
     std::ifstream shader_file{file_name};
 
     if (!shader_file.good()) {
@@ -109,4 +112,17 @@ GLuint Shader::load_shader(const char* file_name, GLenum gl_shader_type) {
     }
 
     return shader_id;
+}
+
+void ShaderProgram::init_texture_slots() const {
+    bind();
+    std::vector<int> textures{};
+    textures.reserve(MAX_TEXTURES);
+
+    for (int i = 0; i < MAX_TEXTURES + 1; ++i) {
+        textures.push_back(i);
+    }
+
+    setIntArray("u_textures", textures);
+    unbind();
 }

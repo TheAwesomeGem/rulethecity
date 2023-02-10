@@ -4,41 +4,36 @@
 
 
 namespace ShapeGenerator {
-    static Shape generate_quad() {
+    static Shape generate_quad(size_t id, ShaderProgram shader_program) {
         return Shape{
+                id,
                 {
-                        {0.0F, 0.0F, 0.0F},
-                        {1.0F, 0.0F, 0.0F},
-                        {0.0F, 1.0F, 0.0F},
-                        {1.0, 1.0F, 0.0F}
+                        Shape::Vertex{{0.0F, 0.0F}, {0.0F, 0.0F}},
+                        Shape::Vertex{{1.0F, 0.0F}, {1.0F, 0.0F}},
+                        Shape::Vertex{{0.0F, 1.0F}, {0.0F, 1.0F}},
+                        Shape::Vertex{{1.0, 1.0F}, {1.0F, 1.0F}}
                 },
                 {
                         0, 1, 3, 0, 3, 2
                 },
-                {
-                        {0.0F, 0.0F},
-                        {1.0F, 0.0F},
-                        {0.0F, 1.0F},
-                        {1.0F, 1.0F},
-                }
+                {},
+                shader_program
         };
     }
 
-    static Shape generate_triangle() {
+    static Shape generate_triangle(size_t id, ShaderProgram shader_program) {
         return Shape{
+                id,
                 {
-                        {0.0F, 0.0F, 0.0F},
-                        {1.0F, 0.0F, 0.0F},
-                        {0.5F, 1.0F, 0.0F},
+                        Shape::Vertex{{0.0F, 0.0F}, {0.0F, 0.0F}},
+                        Shape::Vertex{{1.0F, 0.0F}, {1.0F, 0.0F}},
+                        Shape::Vertex{{0.5F, 1.0F}, {0.5F, 1.0F}},
                 },
                 {
                         0, 1, 2
                 },
-                {
-                        {0.0F, 0.0F},
-                        {1.0F, 0.0F},
-                        {0.5F, 1.0F}
-                }
+                {},
+                shader_program
         };
     }
 };
